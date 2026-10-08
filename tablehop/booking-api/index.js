@@ -13,6 +13,8 @@ app.use((req, res, next) => {
     next();
 });
 
+// helper functions 
+
 async function allRestaurants() {
     const bookingsRef = await store.collection('restaurants').get();
     return bookingsRef.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -39,6 +41,8 @@ function getDiner(name) {
 function bookingExists(restaurantId, tableId, date, time) {
     return `${restaurantId}_${tableId}_${date}_${time}`;
 }
+
+// restaurant data 
 
 app.get('/restaurants', async (req, res) => {
     try {
@@ -77,6 +81,85 @@ app.get('/restaurants/:id', async (req, res) => {
     }
 });
 
+app.get('/restaurants/:id/availability', async (req, res) => {
+    try {
+        const restaurant = await getRestaurant(req.params.id);
+        if (!restaurant) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+
+        const date = req.query.date;
+        const party = Number(req.query.party || 2);
+        const group = req.query.group || 'bookings';
+
+        const bookings = (await findBooking(group, restaurant.id, date));
+
+        const slots = (restaurant.timeSlots || []).map((time) => {
+            const takenTables = bookings
+                .filter(b => b.time === time)
+                .map(b => b.tableId);
+                
+            const freeTables = (restaurant.tables || []).filter(
+                t => t.size >= party && !takenTables.includes(t.id)
+            );
+            
+            return { time, free: freeTables.length };
+        });
+
+        res.json({ restaurant, slots });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// bookings 
+
+app.post('/bookings', async (req, res) => {
+    try {
+        const { group = 'bookings', restaurantId, tableId, date, time, guests, dinerName } = req.body;
+
+        if (!restaurantId || !tableId || !date || !time || !guests || !dinerName) {
+            return res.status(400).json({ error: 'Missing required booking fields' });
+        }
+
+        const restaurant = await getRestaurant(restaurantId);
+        if (!restaurant) {
+            return res.status(404).json({ error: 'Restaurant not found' });
+        }
+
+        const uniqueBooking = bookingExists(restaurantId, tableId, date, time);
+
+        const existingBookings = await findBooking(group, restaurantId, date);
+        const isTaken = existingBookings.some(b => b.bookingKey === uniqueBooking);
+
+        if (isTaken) {
+            return res.status(409).json({ error: 'This table is already booked for this time slot.' });
+        }
+
+        const bookingData = {
+            restaurantId,
+            tableId,
+            date,
+            time,
+            guests: Number(guests),
+            dinerName: getDiner(dinerName),
+            bookingKey: uniqueBooking,
+            createdAt: new Date().toISOString()
+        };
+
+        const docRef = await store.collection(group).add(bookingData);
+
+        res.status(201).json({
+            message: 'Booking confirmed!',
+            bookingId: docRef.id,
+            ...bookingData
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// server 
 const PORT = process.env.PORT || 3000;
 if (process.env.NODE_ENV !== 'production') {
     app.listen(PORT, () => {
