@@ -114,6 +114,8 @@ export const restaurants = [
 export const bookings = [
     ["1", "table1", "2024-06-15","19:00", 2, "John Doe"],
     ["1", "table2", "2024-06-15","20:00", 4, "Jane Smith"],
+    ["1", "table1", "2024-06-15", "20:00", 2, "Ellis Park"],
+    ["1", "table3", "2024-06-15", "20:00", 6, "Sam Lindqvist"],
     ["2", "table1", "2024-06-15","18:30", 4, "Alice Johnson"],
     ["3", "table2", "2024-06-15","19:30", 4, "Bob Brown"],
     ["4", "table1", "2024-06-15","20:30", 2, "Charlie Davis"],
@@ -123,9 +125,8 @@ export const bookings = [
 ];
 
 export const waitlist = [
-    ["1", "table1", "2024-06-15","19:00", 2, "John Doe"],
-    ["1", "table2", "2024-06-15","20:00", 4, "Jane Smith"],
-    ["2", "table1", "2024-06-15","18:30", 4, "Alice Johnson"],
-    ["3", "table2", "2024-06-15","19:30", 4, "Bob Brown"]
+    ["1", "2024-06-15", "20:00", 2, "Maya Chen"],
+    ["1", "2024-06-15", "20:00", 4, "Jordan Blake"],
+    ["1", "2024-06-15", "20:00", 3, "Priya Raman"],
 ];
 
