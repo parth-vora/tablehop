@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { bookingAPI } from '@/lib/booking-api';
+
+// ISR: built once, served from Vercel's cache, rebuilt at most every 60s
 export const revalidate = 60;
 
 type Restaurant = {
@@ -15,21 +17,17 @@ export default async function Home() {
     const { data: restaurants } = await bookingAPI('/restaurants', 'GET', undefined, 60);
 
     return (
-        <main className="mx-auto max-w-4xl p-8">
-            <h1 className="text-3xl font-bold">Tablehop</h1>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <main>
+            <h1>Tablehop</h1>
+            <ul>
                 {restaurants.map((r: Restaurant) => (
-                    <Link
-                        key={r.id}
-                        href={`/r/${r.id}`}
-                    >
-                        <h2>{r.name}</h2>
-                        <p>{r.cuisine}, {r.neighborhood}, {r.priceRange} </p>
+                    <li key={r.id}>
+                        <Link href={`/r/${r.id}`}>{r.name}</Link>
+                        <p>{r.cuisine}, {r.neighborhood}, {r.priceRange}</p>
                         <p>{r.description}</p>
-                    </Link>
+                    </li>
                 ))}
-            </div>
+            </ul>
         </main>
     );
 }
