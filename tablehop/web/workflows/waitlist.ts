@@ -81,7 +81,7 @@ async function book(o: Openings, diner: Diner) {
             prompt: `Write a short text message under 25 words telling ${diner.dinerName} a table for ${diner.guests} just opened at ${restaurant.name} (${restaurant.cuisine}) at ${o.time}. They have 60 seconds to take it.`,
         });
         return text.trim() || plain;
-    } catch {
+    } catch{
         return plain;
     }
 }
