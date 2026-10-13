@@ -5,9 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import { dinerId, formatDate, formatTime, tableLabel } from '@/lib/user';
 import { useFresh } from '@/lib/use-fresh';
 import { chime, unlockChime } from '@/lib/chime';
+import { sfx } from '@/lib/sfx';
 import { Toasts, useToasts } from '@/components/Toasts';
 import CountdownRing from '@/components/CountdownRing';
 import Confetti from '@/components/Confetti';
+import PixelIcon from '@/components/PixelIcon';
 
 type Booking = { bookingId: string; restaurantId: string; tableId: string; date: string; time: string; guests: number };
 type WaitlistEntry = {
@@ -22,6 +24,15 @@ const statusText: Record<string, string> = {
     lost: 'Someone else got it',
     booked: 'Booked',
 };
+
+function SectionTitle({ id, children, count }: { id: string; children: React.ReactNode; count?: number }) {
+    return (
+        <div className="flex items-baseline justify-between gap-4 border-b-4 border-line pb-4">
+            <h2 id={id} className="font-pixel text-xs">{children}</h2>
+            {count !== undefined && <span className="font-pixel text-[9px] text-muted">x{count}</span>}
+        </div>
+    );
+}
 
 export default function MyReservations({ name, restaurantNames }: { name: string; restaurantNames: Record<string, string> }) {
     const [bookings, setBookings] = useState<Booking[]>([]);
@@ -90,6 +101,7 @@ export default function MyReservations({ name, restaurantNames }: { name: string
     }, [won]);
 
     async function respond(offerStatus: string, accepted: boolean) {
+        sfx(accepted ? 'win' : 'back');
         setAnswering(offerStatus);
         await fetch('/api/offers/respond', {
             method: 'POST',
@@ -102,6 +114,7 @@ export default function MyReservations({ name, restaurantNames }: { name: string
     }
 
     async function cancelBooking(b: Booking) {
+        sfx('back');
         setConfirming('');
         setLeaving(b.bookingId);
         const res = await fetch('/api/bookings/cancel', {
@@ -125,26 +138,27 @@ export default function MyReservations({ name, restaurantNames }: { name: string
 
     return (
         <>
-            <div className="mt-6">
+            <div className="mt-8">
                 {sound ? (
-                    <p className="flex items-center gap-2 text-sm text-muted">
-                        <span className="animate-live size-2 rounded-full bg-open" /> Sound on. You’ll hear a chime when a table opens.
+                    <p className="flex items-center gap-3 text-muted">
+                        <span className="animate-live size-2 bg-open" /> Sound on. You’ll hear a chime when a table opens.
                     </p>
                 ) : (
-                    <button onClick={turnOnSound} className="rounded-full border border-line px-4 py-2 text-sm font-medium transition-colors hover:border-ink">
+                    <button onClick={turnOnSound} className="px-btn bg-wash px-4 py-3 font-pixel text-[9px] text-ink">
                         Turn on sound alerts
                     </button>
                 )}
             </div>
 
             {won && (
-                <section key={won.id} className="animate-offer relative mt-10 overflow-visible rounded-2xl bg-open p-6 text-paper sm:p-8">
+                <section key={won.id} className="px-panel animate-offer relative mt-12 overflow-visible bg-open p-6 text-void [--frame:var(--color-ink)] sm:p-8">
                     <Confetti />
-                    <p className="text-sm text-paper/75">{place(won.restaurantId)}, {formatDate(won.date)}</p>
-                    <p className="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+                    <p className="font-pixel text-[10px]">TABLE SECURED!</p>
+                    <p className="mt-3 text-void/75">{place(won.restaurantId)}, {formatDate(won.date)}</p>
+                    <p className="mt-2 font-pixel text-lg leading-relaxed sm:text-2xl">
                         It’s yours. {formatTime(won.time)}, party of {won.guests}.
                     </p>
-                    <p className="mt-3 text-paper/80">You’re booked. It’s under Upcoming below.</p>
+                    <p className="mt-3 text-void/80">You’re booked. It’s under Upcoming below.</p>
                 </section>
             )}
 
@@ -152,29 +166,30 @@ export default function MyReservations({ name, restaurantNames }: { name: string
                 const secondsLeft = Math.max(0, Math.round((Date.parse(w.expiresAt ?? '') - now) / 1000));
                 const busy = answering === w.offerStatus;
                 return (
-                    <section key={w.id} aria-live="assertive" className="animate-offer mt-10 rounded-2xl bg-ink text-paper">
+                    <section key={w.id} aria-live="assertive" className="px-panel animate-offer mt-12 bg-void [--frame:var(--color-coin)]">
                         <div className="animate-nudge flex flex-col gap-8 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
                             <div className="min-w-0">
-                                <p className="flex items-center gap-2 text-sm text-paper/60">
-                                    <span className="animate-live size-2 rounded-full bg-[#2bd17e]" />
+                                <p className="animate-blink font-pixel text-[10px] text-coin">LAST-MINUTE TABLE!</p>
+                                <p className="mt-3 flex items-center gap-3 text-muted">
+                                    <span className="animate-live size-2 bg-open" />
                                     A table opened at {place(w.restaurantId)}, {formatDate(w.date)}
                                 </p>
-                                <p className="mt-3 max-w-xl text-2xl font-medium leading-snug tracking-tight sm:text-3xl">
+                                <p className="mt-4 max-w-xl font-pixel text-base leading-relaxed sm:text-lg">
                                     {w.message ?? `${formatTime(w.time)} for ${w.guests} is yours if you want it.`}
                                 </p>
                                 {secondsLeft > 0 && w.offerStatus && (
-                                    <div className="mt-8 flex flex-wrap gap-3">
+                                    <div className="mt-8 flex flex-wrap gap-5">
                                         <button
                                             onClick={() => respond(w.offerStatus!, true)}
                                             disabled={busy}
-                                            className="rounded-full bg-paper px-6 py-3 font-medium text-ink transition hover:bg-paper/85 disabled:opacity-60"
+                                            className="px-btn bg-open px-6 py-4 font-pixel text-[10px] text-void disabled:opacity-60"
                                         >
                                             {busy ? 'Booking…' : 'Take the table'}
                                         </button>
                                         <button
                                             onClick={() => respond(w.offerStatus!, false)}
                                             disabled={busy}
-                                            className="rounded-full border border-paper/30 px-6 py-3 font-medium transition hover:border-paper disabled:opacity-60"
+                                            className="px-btn bg-wash px-6 py-4 font-pixel text-[10px] text-ink disabled:opacity-60"
                                         >
                                             Pass
                                         </button>
@@ -189,42 +204,51 @@ export default function MyReservations({ name, restaurantNames }: { name: string
                 );
             })}
 
-            <section aria-labelledby="upcoming" className="mt-14">
-                <h2 id="upcoming" className="border-b border-ink pb-3 text-sm font-medium">Upcoming</h2>
-                <ul>
+            <section aria-labelledby="upcoming" className="mt-16">
+                <SectionTitle id="upcoming" count={bookings.length}>UPCOMING</SectionTitle>
+                <ul className="mt-6 flex flex-col gap-6">
                     {bookings.map((b) => (
                         <li
                             key={b.bookingId}
                             className={[
-                                'grid grid-cols-[5.5rem_1fr] gap-4 border-b border-line py-5 transition-opacity duration-300 sm:grid-cols-[7rem_1fr_auto]',
-                                fresh('b' + b.bookingId) ? 'animate-enter bg-open-wash/60' : '',
+                                'px-frame grid grid-cols-[5.5rem_1fr] items-center gap-4 bg-wash p-4 transition-opacity duration-300 [--frame:var(--color-line)] sm:grid-cols-[7rem_1fr_auto]',
+                                fresh('b' + b.bookingId) ? 'animate-enter [--frame:var(--color-open)]' : '',
                                 leaving === b.bookingId ? 'opacity-30' : '',
                             ].join(' ')}
                         >
-                            <span className="text-xl font-semibold tabular-nums tracking-tight">{formatTime(b.time)}</span>
+                            <span className="font-pixel text-xs text-coin">{formatTime(b.time)}</span>
                             <div>
-                                <Link href={`/r/${b.restaurantId}`} className="font-medium hover:underline hover:underline-offset-4">
+                                <Link href={`/r/${b.restaurantId}`} className="font-medium hover:text-coin hover:underline hover:underline-offset-4">
                                     {place(b.restaurantId)}
                                 </Link>
-                                <p className="text-sm text-muted">
+                                <p className="text-muted">
                                     {formatDate(b.date)}, party of {b.guests}
                                 </p>
                             </div>
-                            <div className="col-start-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm sm:col-start-auto sm:justify-end">
-                                <span className="text-muted">{tableLabel(b.tableId)}</span>
+                            <div className="col-start-2 flex flex-wrap items-center gap-x-5 gap-y-3 sm:col-start-auto sm:justify-end">
+                                <span className="font-pixel text-[9px] text-muted">{tableLabel(b.tableId)}</span>
                                 {confirming === b.bookingId ? (
-                                    <span className="animate-pop flex items-center gap-2">
-                                        <button onClick={() => cancelBooking(b)} className="rounded-full bg-ink px-3 py-1.5 font-medium text-paper">
+                                    <span className="animate-pop flex items-center gap-4">
+                                        <button onClick={() => cancelBooking(b)} className="px-btn bg-alert px-3 py-2 font-pixel text-[9px] text-ink">
                                             Cancel booking
                                         </button>
-                                        <button onClick={() => setConfirming('')} className="px-2 py-1.5 text-muted hover:text-ink">
+                                        <button
+                                            onClick={() => {
+                                                sfx('blip');
+                                                setConfirming('');
+                                            }}
+                                            className="text-muted hover:text-ink"
+                                        >
                                             Keep it
                                         </button>
                                     </span>
                                 ) : (
                                     <button
-                                        onClick={() => setConfirming(b.bookingId)}
-                                        className="rounded-full border border-line px-3 py-1.5 font-medium transition-colors hover:border-ink"
+                                        onClick={() => {
+                                            sfx('blip');
+                                            setConfirming(b.bookingId);
+                                        }}
+                                        className="px-btn bg-paper px-3 py-2 font-pixel text-[9px] text-ink"
                                     >
                                         Cancel
                                     </button>
@@ -235,31 +259,35 @@ export default function MyReservations({ name, restaurantNames }: { name: string
                 </ul>
                 {loaded && bookings.length === 0 && (
                     <p className="py-6 text-muted">
-                        No bookings yet. <Link href="/" className="text-ink underline underline-offset-2">Find a table</Link>
+                        No bookings yet. <Link href="/" className="text-coin underline underline-offset-4">Find a table</Link>
                     </p>
                 )}
             </section>
 
             {(waiting.length > 0 || offers.length === 0) && (
-                <section aria-labelledby="waitlists" className="mt-14">
-                    <h2 id="waitlists" className="border-b border-ink pb-3 text-sm font-medium">Waitlists</h2>
-                    <ul>
+                <section aria-labelledby="waitlists" className="mt-16">
+                    <SectionTitle id="waitlists" count={waiting.length}>WAITLISTS</SectionTitle>
+                    <ul className="mt-6 flex flex-col gap-6">
                         {waiting.map((w) => (
                             <li
                                 key={w.id}
                                 className={[
-                                    'grid grid-cols-[5.5rem_1fr] gap-4 border-b border-line py-5 sm:grid-cols-[7rem_1fr_auto]',
+                                    'px-frame grid grid-cols-[5.5rem_1fr] items-center gap-4 bg-paper p-4 [--frame:var(--color-line)] sm:grid-cols-[7rem_1fr_auto]',
                                     fresh('w' + w.id) ? 'animate-enter' : '',
                                 ].join(' ')}
                             >
-                                <span className="text-xl font-semibold tabular-nums tracking-tight">{formatTime(w.time)}</span>
+                                <span className="font-pixel text-xs text-muted">{formatTime(w.time)}</span>
                                 <div>
                                     <p className="font-medium">{place(w.restaurantId)}</p>
-                                    <p className="text-sm text-muted">
+                                    <p className="text-muted">
                                         {formatDate(w.date)}, party of {w.guests}
                                     </p>
                                 </div>
-                                <span key={w.status} className="animate-pop col-start-2 h-fit w-fit rounded-full bg-wash px-3 py-1 text-sm sm:col-start-auto">
+                                <span
+                                    key={w.status}
+                                    className="px-frame animate-pop col-start-2 flex h-fit w-fit items-center gap-2 bg-wash px-3 py-1 text-sm [--frame:var(--color-line)] sm:col-start-auto"
+                                >
+                                    {w.status === 'waiting' && <PixelIcon name="hourglass" size={9} className="animate-blink text-coin" />}
                                     {statusText[w.status] ?? w.status}
                                 </span>
                             </li>

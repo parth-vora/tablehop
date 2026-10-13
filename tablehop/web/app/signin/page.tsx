@@ -12,8 +12,9 @@ export default async function SignInPage({ searchParams }: { searchParams: Promi
 
     return (
         <div className="py-16 sm:py-20">
-            <h1 className="text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">Sign in</h1>
-            <p className="mt-4 max-w-xl text-lg text-muted">
+            <p className="font-pixel text-[9px] text-coin">WELCOME IN</p>
+            <h1 className="mt-4 font-pixel text-2xl sm:text-3xl">Sign in</h1>
+            <p className="mt-5 max-w-xl text-xl text-muted">
                 Diners book tables and get waitlist offers. 
             </p>
             <SignInForm restaurants={restaurants} next={next} startAsHost={as === 'host'} />

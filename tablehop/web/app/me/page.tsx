@@ -14,8 +14,9 @@ export default async function MyPage() {
 
     return (
         <div className="py-12 sm:py-16">
-            <h1 className="text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">My reservations</h1>
-            <p className="mt-3 text-lg text-muted">Signed in as {user.name}</p>
+            <p className="font-pixel text-[9px] text-coin">YOUR TABLES</p>
+            <h1 className="mt-4 font-pixel text-2xl leading-[1.5] sm:text-3xl">My reservations</h1>
+            <p className="mt-3 text-xl text-muted">Signed in as {user.name}</p>
             <MyReservations name={user.name} restaurantNames={names} />
         </div>
     );

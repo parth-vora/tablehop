@@ -1,6 +1,8 @@
-import Link from 'next/link';
+import Image from 'next/image';
 import { bookingAPI } from '@/lib/booking-api';
 import DiningChat from '@/components/DiningChat';
+import StageCard from '@/components/StageCard';
+import PixelIcon from '@/components/PixelIcon';
 
 export const revalidate = 60;
 
@@ -14,51 +16,85 @@ type Restaurant = {
     description: string;
 };
 
+const howToPlay = [
+    { step: '1', title: 'Pick a spot', text: 'Choose a restaurant and a time.' },
+    { step: '2', title: 'Book or wait', text: 'Fully booked? Join the waitlist instead.' },
+    { step: '3', title: 'Snag a cancellation', text: 'Someone cancels, you get 60 seconds to claim the table.' },
+];
+
 export default async function Home() {
     const { data } = await bookingAPI('/restaurants', 'GET', undefined, 60);
     const restaurants: Restaurant[] = Array.isArray(data) ? data : [];
 
     return (
         <>
-            <section className="py-16 sm:py-24">
-                <h1 className="max-w-3xl text-4xl font-semibold leading-[1.05] tracking-[-0.03em] sm:text-6xl">
-                    Book a table. If it’s full, get the next one that opens.
-                </h1>
-                <p className="mt-6 max-w-xl text-lg text-muted">
-                    Join a restaurant’s waitlist and when someone cancels, you can take that slot! 
-                </p>
-            </section>
-
-            <section aria-labelledby="restaurants">
-                <div className="flex items-baseline justify-between border-b border-ink pb-3">
-                    <h2 id="restaurants" className="text-sm font-medium">Restaurants</h2>
-                    <span className="text-sm text-muted tabular-nums">{restaurants.length} in New York</span>
+            <section className="grid items-center gap-12 py-12 sm:py-16 lg:grid-cols-[1.1fr_1fr]">
+                <div>
+                    <p className="flex items-center gap-2 font-pixel text-[10px] text-coin">
+                        <PixelIcon name="arrow" size={10} className="animate-blink" />
+                        NOW SEATING · NEW YORK
+                    </p>
+                    <h1 className="mt-6 font-pixel text-xl leading-[1.6] text-balance sm:text-3xl sm:leading-[1.5]">
+                        Book a table. If it’s full, get the next one that opens.
+                    </h1>
+                    <p className="mt-6 max-w-xl text-xl text-muted">
+                        Join a restaurant’s waitlist and when someone cancels, you can take that slot!
+                    </p>
+                    <a
+                        href="#restaurants"
+                        className="px-btn mt-9 inline-flex items-center gap-3 bg-alert px-6 py-4 font-pixel text-xs text-ink"
+                    >
+                        FIND A TABLE
+                        <PixelIcon name="arrow" size={10} />
+                    </a>
                 </div>
 
-                <ul>
-                    {restaurants.map((r) => (
-                        <li key={r.id} className="border-b border-line">
-                            <Link href={`/r/${r.id}`} className="group grid gap-1 py-6 sm:grid-cols-[1fr_auto] sm:gap-8">
-                                <div>
-                                    <p className="text-xl font-semibold tracking-tight group-hover:underline group-hover:underline-offset-4">
-                                        {r.name}
-                                    </p>
-                                    <p className="mt-1 text-sm text-muted">
-                                        {r.cuisine} in {r.neighborhood}
-                                    </p>
-                                    <p className="mt-3 max-w-xl text-[15px] leading-relaxed">{r.description}</p>
-                                </div>
-                                <div className="flex gap-4 text-sm tabular-nums sm:flex-col sm:items-end sm:gap-1">
-                                    <span>{r.priceRange}</span>
-                                    <span className="text-muted">{r.rating?.toFixed(1)} rating</span>
-                                </div>
-                            </Link>
+                <figure className="px-panel relative bg-void [--frame:var(--color-coin)]">
+                    <Image
+                        src="/images/hero-street.png"
+                        alt="Pixel art of a glowing New York restaurant at night"
+                        width={1024}
+                        height={1024}
+                        priority
+                        className="pixelated aspect-[4/3] w-full object-cover"
+                    />
+                    <figcaption className="px-frame absolute -bottom-4 left-4 bg-open px-3 py-2 font-pixel text-[9px] text-void">
+                        TABLES OPEN TONIGHT
+                    </figcaption>
+                </figure>
+            </section>
+
+            <section aria-labelledby="how-to-play" className="mt-6">
+                <h2 id="how-to-play" className="sr-only">How it works</h2>
+                <ol className="grid gap-6 sm:grid-cols-3">
+                    {howToPlay.map((s) => (
+                        <li key={s.step} className="px-frame flex gap-4 bg-paper p-4 [--frame:var(--color-line)]">
+                            <span className="font-pixel text-lg text-coin">{s.step}</span>
+                            <span>
+                                <span className="block font-pixel text-[10px] leading-relaxed">{s.title}</span>
+                                <span className="mt-1 block text-muted">{s.text}</span>
+                            </span>
+                        </li>
+                    ))}
+                </ol>
+            </section>
+
+            <section aria-labelledby="restaurants" className="mt-16 scroll-mt-24">
+                <div className="flex items-baseline justify-between gap-4 border-b-4 border-line pb-4">
+                    <h2 id="restaurants" className="font-pixel text-xs sm:text-sm">ON THE MENU TONIGHT</h2>
+                    <span className="font-pixel text-[9px] text-muted">{restaurants.length} IN NEW YORK</span>
+                </div>
+
+                <ul className="mt-8 grid gap-8 sm:grid-cols-2">
+                    {restaurants.map((r, i) => (
+                        <li key={r.id}>
+                            <StageCard restaurant={r} index={i} />
                         </li>
                     ))}
                 </ul>
 
                 {restaurants.length === 0 && (
-                    <p className="py-10 text-muted">No restaurants yet.</p>
+                    <p className="py-10 font-pixel text-[10px] text-muted">No restaurants yet.</p>
                 )}
             </section>
 

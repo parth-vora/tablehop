@@ -4,10 +4,15 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useUser } from '@/lib/use-user';
 import { formatTime } from '@/lib/user';
+import { sfx } from '@/lib/sfx';
 import Confetti from '@/components/Confetti';
+import PixelIcon from '@/components/PixelIcon';
 
 type Slot = { time: string; free: number };
 type Result = { ok: boolean; text: string; at: number };
+
+const MIN_GUESTS = 1;
+const MAX_GUESTS = 6;
 
 export default function BookingForm({ restaurantId, restaurantName }: { restaurantId: string; restaurantName: string }) {
     const user = useUser();
@@ -29,6 +34,13 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
         loadSlots();
     }, [date, guests]);
 
+    function changeGuests(delta: number) {
+        const next = Math.min(MAX_GUESTS, Math.max(MIN_GUESTS, guests + delta));
+        if (next === guests) return sfx('error');
+        sfx('blip');
+        setGuests(next);
+    }
+
     async function reserve() {
         if (!picked || !user) return;
         const full = picked.free === 0;
@@ -43,6 +55,7 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
         const data = await res.json();
 
         if (res.ok) {
+            sfx(full ? 'coin' : 'win');
             setResult({
                 at: Date.now(),
                 ok: true,
@@ -52,6 +65,7 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
             });
             setPicked(null);
         } else {
+            sfx('error');
             setResult({ at: Date.now(), ok: false, text: data.error ?? 'That didn’t go through. Try another time.' });
         }
         setSaving(false);
@@ -59,35 +73,62 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
     }
 
     return (
-        <aside className="relative h-fit rounded-2xl border border-line p-5 sm:p-6 lg:sticky lg:top-8">
-            <h2 className="text-lg font-semibold tracking-tight">Reserve a table</h2>
+        <aside className="px-panel relative h-fit bg-wash p-5 sm:p-6 lg:sticky lg:top-24">
+            <div className="flex items-center justify-between gap-4">
+                <h2 className="font-pixel text-xs">RESERVE A TABLE</h2>
+                <span className="animate-live size-2 bg-open" aria-hidden />
+            </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-3">
-                <label className="text-sm">
-                    <span className="text-muted">Date</span>
+            <div className="mt-6 grid grid-cols-2 gap-4">
+                <label className="block">
+                    <span className="font-pixel text-[9px] text-muted">DATE</span>
                     <input
                         type="date"
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="mt-1 block w-full rounded-lg border border-line px-3 py-2 outline-none focus:border-ink"
+                        onChange={(e) => {
+                            sfx('blip');
+                            setDate(e.target.value);
+                        }}
+                        className="px-frame mt-3 block w-full bg-paper px-3 py-2 text-ink outline-none [--frame:var(--color-line)] focus:[--frame:var(--color-coin)]"
                     />
                 </label>
-                <label className="text-sm">
-                    <span className="text-muted">Party size</span>
-                    <select
-                        value={guests}
-                        onChange={(e) => setGuests(Number(e.target.value))}
-                        className="mt-1 block w-full rounded-lg border border-line bg-paper px-3 py-2 outline-none focus:border-ink"
-                    >
-                        {[1, 2, 3, 4, 5, 6].map((n) => (
-                            <option key={n} value={n}>{n} {n === 1 ? 'guest' : 'guests'}</option>
-                        ))}
-                    </select>
-                </label>
+                <div role="group" aria-labelledby="party-label">
+                    <span id="party-label" className="font-pixel text-[9px] text-muted">PARTY SIZE</span>
+                    <div className="px-frame mt-3 flex items-center justify-between bg-paper [--frame:var(--color-line)]">
+                        <button
+                            type="button"
+                            onClick={() => changeGuests(-1)}
+                            disabled={guests <= MIN_GUESTS}
+                            aria-label="Fewer guests"
+                            className="px-3 py-2 font-pixel text-xs text-coin hover:bg-wash disabled:text-line"
+                        >
+                            -
+                        </button>
+                        <output aria-live="polite" className="font-pixel text-[11px]">
+                            {guests}
+                            <span className="sr-only"> {guests === 1 ? 'guest' : 'guests'}</span>
+                        </output>
+                        <button
+                            type="button"
+                            onClick={() => changeGuests(1)}
+                            disabled={guests >= MAX_GUESTS}
+                            aria-label="More guests"
+                            className="px-3 py-2 font-pixel text-xs text-coin hover:bg-wash disabled:text-line"
+                        >
+                            +
+                        </button>
+                    </div>
+                </div>
             </div>
 
-            <p className="mt-6 text-sm text-muted">Pick a time</p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div aria-hidden className="mt-4 flex h-5 items-end gap-1.5 text-open">
+                {Array.from({ length: guests }, (_, i) => (
+                    <PixelIcon key={`${guests}-${i}`} name="person" size={16} className="animate-pop" />
+                ))}
+            </div>
+
+            <p className="mt-6 font-pixel text-[9px] text-muted">PICK A TIME</p>
+            <div className="mt-4 grid grid-cols-3 gap-3">
                 {slots.map((s, i) => {
                     const selected = picked?.time === s.time;
                     const full = s.free === 0;
@@ -95,15 +136,29 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
                         <button
                             key={`${date}-${guests}-${s.time}`}
                             style={{ animationDelay: `${i * 30}ms` }}
-                            onClick={() => { setPicked(s); setResult(null); }}
+                            onClick={() => {
+                                sfx('select');
+                                setPicked(s);
+                                setResult(null);
+                            }}
                             aria-pressed={selected}
                             className={[
-                                'animate-pop rounded-lg border px-2 py-2.5 text-center tabular-nums transition-colors',
-                                selected ? 'border-ink bg-ink text-paper' : full ? 'border-transparent bg-wash' : 'border-line hover:border-ink',
+                                'px-frame animate-pop px-1 py-2.5 text-center transition-colors',
+                                selected
+                                    ? 'bg-coin text-void [--frame:var(--color-ink)]'
+                                    : full
+                                      ? 'bg-paper/60 [--frame:var(--color-line)] hover:[--frame:var(--color-alert)]'
+                                      : 'bg-paper [--frame:var(--color-line)] hover:[--frame:var(--color-open)]',
                             ].join(' ')}
                         >
-                            <span className="block text-[15px] font-medium">{formatTime(s.time)}</span>
-                            <span className={['block text-xs', selected ? 'text-paper/70' : full ? 'text-muted' : 'text-open'].join(' ')}>
+                            <span className="block font-pixel text-[10px]">{formatTime(s.time)}</span>
+                            <span
+                                className={[
+                                    'mt-1 flex items-center justify-center gap-1 text-sm',
+                                    selected ? 'text-void/75' : full ? 'text-alert' : 'text-open',
+                                ].join(' ')}
+                            >
+                                {full && <PixelIcon name="hourglass" size={9} />}
                                 {full ? 'Waitlist' : `${s.free} open`}
                             </span>
                         </button>
@@ -111,11 +166,12 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
                 })}
             </div>
 
-            <div className="mt-6">
+            <div className="mt-8">
                 {user === null || user?.role === 'host' ? (
                     <Link
                         href={`/signin?next=/r/${restaurantId}`}
-                        className="block rounded-full bg-ink py-3 text-center font-medium text-paper hover:bg-ink/80"
+                        onClick={() => sfx('select')}
+                        className="px-btn block bg-coin py-4 text-center font-pixel text-[10px] text-void"
                     >
                         {user ? 'Switch to a diner to reserve' : 'Sign in to reserve'}
                     </Link>
@@ -123,11 +179,13 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
                     <button
                         onClick={reserve}
                         disabled={!picked || saving || !user}
-                        className="w-full rounded-full bg-ink py-3 font-medium text-paper hover:bg-ink/80 disabled:bg-line disabled:text-muted"
+                        className="px-btn w-full bg-alert px-3 py-4 font-pixel text-[10px] leading-relaxed text-ink disabled:bg-line disabled:text-muted"
                     >
-                        {!picked
-                            ? 'Choose a time'
-                            : picked.free === 0
+                        {saving
+                            ? 'Saving…'
+                            : !picked
+                              ? 'Choose a time'
+                              : picked.free === 0
                                 ? `Join waitlist for ${formatTime(picked.time)}`
                                 : `Book ${formatTime(picked.time)} for ${guests}`}
                     </button>
@@ -136,12 +194,29 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
 
             {result?.ok && <Confetti key={result.at} pieces={28} />}
             {result && (
-                <p key={result.at} role="status" className={['animate-pop mt-4 rounded-lg px-4 py-3 text-sm', result.ok ? 'bg-open-wash text-open' : 'bg-wash text-alert'].join(' ')}>
-                    {result.text}
-                    {result.ok && (
-                        <> <Link href="/me" className="font-medium underline underline-offset-2">See my reservations</Link></>
-                    )}
-                </p>
+                <div
+                    key={result.at}
+                    role="status"
+                    className={[
+                        'px-frame animate-pop mt-6 px-4 py-3',
+                        result.ok ? 'bg-open-wash text-ink [--frame:var(--color-open)]' : 'bg-paper text-alert [--frame:var(--color-alert)]',
+                    ].join(' ')}
+                >
+                    <p className={['font-pixel text-[10px]', result.ok ? 'text-open' : 'text-alert'].join(' ')}>
+                        {result.ok ? 'TABLE BOOKED!' : 'NO LUCK THIS TIME'}
+                    </p>
+                    <p className="mt-2">
+                        {result.text}
+                        {result.ok && (
+                            <>
+                                {' '}
+                                <Link href="/me" className="text-coin underline underline-offset-4">
+                                    See my reservations
+                                </Link>
+                            </>
+                        )}
+                    </p>
+                </div>
             )}
         </aside>
     );

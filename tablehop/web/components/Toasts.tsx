@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import PixelIcon from './PixelIcon';
 
 type Toast = { id: number; text: string; tone: 'plain' | 'good' };
 
@@ -18,15 +19,23 @@ export function useToasts() {
 
 export function Toasts({ toasts }: { toasts: Toast[] }) {
     return (
-        <div aria-live="polite" className="pointer-events-none fixed inset-x-4 bottom-4 z-50 flex flex-col items-end gap-2 sm:inset-x-auto sm:right-6 sm:bottom-6">
+        <div
+            aria-live="polite"
+            className="pointer-events-none fixed inset-x-4 bottom-24 z-50 flex flex-col items-end gap-4 sm:inset-x-auto sm:right-6"
+        >
             {toasts.map((t) => (
                 <div
                     key={t.id}
                     className={[
-                        'animate-toast flex max-w-sm items-center gap-3 rounded-xl px-4 py-3 text-sm shadow-[0_8px_30px_rgb(0_0_0/0.18)]',
-                        t.tone === 'good' ? 'bg-open text-paper' : 'bg-ink text-paper',
+                        'px-panel animate-toast flex max-w-sm items-start gap-3 px-4 py-3',
+                        t.tone === 'good' ? 'bg-open text-void' : 'bg-wash text-ink [--frame:var(--color-coin)]',
                     ].join(' ')}
                 >
+                    <PixelIcon
+                        name={t.tone === 'good' ? 'check' : 'bang'}
+                        size={12}
+                        className={['mt-1.5', t.tone === 'good' ? 'text-void' : 'text-coin'].join(' ')}
+                    />
                     {t.text}
                 </div>
             ))}
