@@ -30,7 +30,8 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
     }
 
     const store = await cookies();
-    store.set(USER_COOKIE, JSON.stringify(user), { path: '/', sameSite: 'lax', maxAge: 60 * 60 * 24 * 7 });
+    // sameSite 'none' + secure so the cookie survives inside the embedded v0 preview iframe
+    store.set(USER_COOKIE, JSON.stringify(user), { path: '/', sameSite: 'none', secure: true, maxAge: 60 * 60 * 24 * 7 });
 
     if (role === 'diner' && next.startsWith('/') && !next.startsWith('//')) redirect(next);
     redirect(role === 'host' ? `/host/${restaurantId}` : '/me');
@@ -38,6 +39,6 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
 
 export async function signOut() {
     const store = await cookies();
-    store.delete(USER_COOKIE);
+    store.set(USER_COOKIE, '', { path: '/', sameSite: 'none', secure: true, maxAge: 0 });
     redirect('/signin');
 }

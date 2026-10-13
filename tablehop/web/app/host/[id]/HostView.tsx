@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatTime, tableLabel } from '@/lib/user';
 import { useFresh } from '@/lib/use-fresh';
+import { sfx } from '@/lib/sfx';
 import { Toasts, useToasts } from '@/components/Toasts';
+import PixelIcon from '@/components/PixelIcon';
 
 type Table = { id: string; size: number };
 type Booking = { bookingId: string; tableId: string; time: string; dinerName: string; guests: number };
@@ -20,6 +22,17 @@ const statusText: Record<string, string> = {
     lost: 'Missed out',
     booked: 'Booked',
 };
+
+function Score({ label, value, tone }: { label: string; value: number; tone: string }) {
+    return (
+        <div className="px-frame bg-void px-4 py-3 [--frame:var(--color-line)]">
+            <span className="block font-pixel text-[8px] text-ink/60">{label}</span>
+            <span key={value} className={`animate-pop mt-2 block font-pixel text-lg ${tone}`}>
+                {String(value).padStart(2, '0')}
+            </span>
+        </div>
+    );
+}
 
 export default function HostView({ restaurantId }: { restaurantId: string }) {
     const [date, setDate] = useState('2024-06-15');
@@ -84,6 +97,7 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
     }, []);
 
     async function cancelBooking(b: Booking) {
+        sfx('back');
         setConfirming('');
         setLeaving(b.bookingId);
         const res = await fetch('/api/host/cancel', {
@@ -109,36 +123,41 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
 
     return (
         <>
-            <div className="mt-8 flex flex-wrap items-end justify-between gap-4">
-                <label className="text-sm">
-                    <span className="text-muted">Service date</span>
+            <div className="mt-8 flex flex-wrap items-end justify-between gap-6">
+                <label className="block">
+                    <span className="font-pixel text-[9px] text-muted">SERVICE DATE</span>
                     <input
                         type="date"
                         value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                        className="mt-1 block rounded-lg border border-line px-3 py-2 outline-none focus:border-ink"
+                        onChange={(e) => {
+                            sfx('blip');
+                            setDate(e.target.value);
+                        }}
+                        className="px-frame mt-3 block bg-paper px-3 py-2 text-ink outline-none [--frame:var(--color-line)] focus:[--frame:var(--color-coin)]"
                     />
                 </label>
-                <p className="text-sm text-muted tabular-nums">
-                    <span key={'b' + bookings.length} className="inline-block animate-pop font-medium text-ink">{bookings.length}</span> booked,{' '}
-                    <span key={'w' + waitingCount} className="inline-block animate-pop font-medium text-ink">{waitingCount}</span> waiting
-                </p>
+                <div className="flex gap-4" aria-live="polite">
+                    <Score label="BOOKED" value={bookings.length} tone="text-coin" />
+                    <Score label="WAITING" value={waitingCount} tone="text-open" />
+                </div>
             </div>
 
             <section aria-labelledby="floor" className="mt-10">
-                <div className="flex items-center justify-between border-b border-ink pb-3">
-                    <h2 id="floor" className="text-sm font-medium">Floor</h2>
-                    <span className="flex items-center gap-2 text-sm text-muted">
-                        <span className="animate-live size-2 rounded-full bg-open" /> Live
+                <div className="flex items-center justify-between border-b-4 border-line pb-4">
+                    <h2 id="floor" className="font-pixel text-xs">FLOOR MAP</h2>
+                    <span className="flex items-center gap-2 font-pixel text-[9px] text-open">
+                        <span className="animate-live size-2 bg-open" /> LIVE
                     </span>
                 </div>
-                <div className="overflow-x-auto">
-                    <table className="mt-4 w-max min-w-full border-separate border-spacing-1.5 text-left text-sm">
+                <div className="overflow-x-auto pb-2">
+                    <table className="mt-4 w-max min-w-full border-separate border-spacing-2 text-left">
                         <thead>
                             <tr>
-                                <th className="font-normal text-muted"><span className="sr-only">Table</span></th>
+                                <th><span className="sr-only">Table</span></th>
                                 {times.map((t) => (
-                                    <th key={t} scope="col" className="min-w-28 px-2 pb-1 font-medium tabular-nums">{formatTime(t)}</th>
+                                    <th key={t} scope="col" className="min-w-32 px-2 pb-1 font-pixel text-[9px] font-normal text-coin">
+                                        {formatTime(t)}
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
@@ -146,8 +165,12 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
                             {tables.map((table) => (
                                 <tr key={table.id}>
                                     <th scope="row" className="sticky left-0 z-10 whitespace-nowrap bg-paper pr-3 align-top font-normal">
-                                        <span className="block font-medium">{tableLabel(table.id)}</span>
-                                        <span className="text-muted">{table.size} seats</span>
+                                        <span className="block font-pixel text-[10px]">{tableLabel(table.id)}</span>
+                                        <span className="mt-1 flex gap-0.5 text-muted" aria-label={`${table.size} seats`}>
+                                            {Array.from({ length: table.size }, (_, i) => (
+                                                <PixelIcon key={i} name="person" size={10} />
+                                            ))}
+                                        </span>
                                     </th>
                                     {times.map((t) => {
                                         const b = bookingAt(table.id, t);
@@ -159,22 +182,34 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
                                         if (b) {
                                             const going = leaving === b.bookingId;
                                             return (
-                                                <td key={cellKey} className={`h-24 rounded-lg bg-ink p-2.5 align-top text-paper transition-opacity duration-300 ${going ? 'opacity-30' : ''} ${flip}`}>
+                                                <td
+                                                    key={cellKey}
+                                                    className={`px-frame h-24 bg-coin p-2.5 align-top text-void transition-opacity duration-300 [--frame:var(--color-void)] ${going ? 'opacity-30' : ''} ${flip}`}
+                                                >
                                                     <span className="block font-medium leading-tight">{b.dinerName}</span>
-                                                    <span className="block text-paper/60">Party of {b.guests}</span>
+                                                    <span className="block text-sm text-void/70">Party of {b.guests}</span>
                                                     {confirming === b.bookingId ? (
-                                                        <span className="animate-pop mt-2 flex gap-2 text-xs">
-                                                            <button onClick={() => cancelBooking(b)} className="rounded-full bg-paper px-2.5 py-1 font-medium text-ink">
+                                                        <span className="animate-pop mt-2 flex items-center gap-2 text-sm">
+                                                            <button onClick={() => cancelBooking(b)} className="bg-alert px-2 py-0.5 font-medium text-ink">
                                                                 Cancel it
                                                             </button>
-                                                            <button onClick={() => setConfirming('')} className="text-paper/70 underline underline-offset-2">
+                                                            <button
+                                                                onClick={() => {
+                                                                    sfx('blip');
+                                                                    setConfirming('');
+                                                                }}
+                                                                className="underline underline-offset-2"
+                                                            >
                                                                 Keep
                                                             </button>
                                                         </span>
                                                     ) : (
                                                         <button
-                                                            onClick={() => setConfirming(b.bookingId)}
-                                                            className="mt-2 text-xs text-paper/70 underline underline-offset-2 hover:text-paper"
+                                                            onClick={() => {
+                                                                sfx('blip');
+                                                                setConfirming(b.bookingId);
+                                                            }}
+                                                            className="mt-2 text-sm text-void/75 underline underline-offset-2 hover:text-void"
                                                         >
                                                             Cancel booking
                                                         </button>
@@ -186,12 +221,14 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
                                         if (offer) {
                                             const s = secondsLeft(offer);
                                             return (
-                                                <td key={cellKey} className="animate-hold h-24 rounded-lg border-2 border-open bg-open-wash p-2.5 align-top text-open">
+                                                <td key={cellKey} className="px-frame animate-hold h-24 bg-open-wash p-2.5 align-top text-open [--frame:var(--color-open)]">
                                                     <div className={flip}>
                                                         <span className="block font-medium leading-tight">Holding for {offer.dinerName}</span>
-                                                        <span className="block tabular-nums">{s}s to answer</span>
-                                                        <span className="mt-2 block h-1 overflow-hidden rounded-full bg-open/15">
-                                                            <span className="block h-full bg-open transition-[width] duration-1000 ease-linear" style={{ width: `${(s / 60) * 100}%` }} />
+                                                        <span className="mt-1 block font-pixel text-[10px]">{s}s to answer</span>
+                                                        <span aria-hidden className="mt-2 flex gap-0.5">
+                                                            {Array.from({ length: 10 }, (_, i) => (
+                                                                <span key={i} className={['h-2 flex-1', i < Math.ceil((s / 60) * 10) ? 'bg-open' : 'bg-open/15'].join(' ')} />
+                                                            ))}
                                                         </span>
                                                     </div>
                                                 </td>
@@ -199,7 +236,12 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
                                         }
 
                                         return (
-                                            <td key={cellKey} className={`h-24 rounded-lg bg-wash p-2.5 align-top text-muted ${flip}`}>Open</td>
+                                            <td
+                                                key={cellKey}
+                                                className={`px-frame h-24 bg-wash p-2.5 align-top font-pixel text-[9px] text-muted [--frame:var(--color-line)] ${flip}`}
+                                            >
+                                                Open
+                                            </td>
                                         );
                                     })}
                                 </tr>
@@ -210,18 +252,19 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
             </section>
 
             <section aria-labelledby="line" className="mt-14">
-                <h2 id="line" className="border-b border-ink pb-3 text-sm font-medium">Waitlist</h2>
-                <ol>
-                    {waitlist.map((w) => (
+                <h2 id="line" className="border-b-4 border-line pb-4 font-pixel text-xs">WAITLIST</h2>
+                <ol className="mt-6 flex flex-col gap-4">
+                    {waitlist.map((w, i) => (
                         <li
                             key={w.id}
                             className={[
-                                'grid grid-cols-[5.5rem_1fr_auto] items-center gap-4 border-b border-line py-4 transition-colors duration-500',
-                                w.status === 'offered' ? 'bg-open-wash/60' : '',
+                                'px-frame grid grid-cols-[2.5rem_5.5rem_1fr] items-center gap-4 p-4 transition-colors duration-500 sm:grid-cols-[2.5rem_6.5rem_1fr_auto]',
+                                w.status === 'offered' ? 'bg-open-wash [--frame:var(--color-open)]' : 'bg-wash [--frame:var(--color-line)]',
                                 fresh('w' + w.id) ? 'animate-enter' : '',
                             ].join(' ')}
                         >
-                            <span className="font-semibold tabular-nums">{formatTime(w.time)}</span>
+                            <span className="font-pixel text-[10px] text-muted">{i + 1}P</span>
+                            <span className="font-pixel text-[10px] text-coin">{formatTime(w.time)}</span>
                             <span>
                                 <span className="font-medium">{w.dinerName}</span>
                                 <span className="text-muted">, party of {w.guests}</span>
@@ -229,8 +272,10 @@ export default function HostView({ restaurantId }: { restaurantId: string }) {
                             <span
                                 key={w.status}
                                 className={[
-                                    'animate-pop rounded-full px-3 py-1 text-sm',
-                                    w.status === 'offered' || w.status === 'booked' ? 'bg-open-wash text-open' : 'bg-wash',
+                                    'px-frame animate-pop col-start-3 w-fit px-3 py-1 text-sm sm:col-start-auto',
+                                    w.status === 'offered' || w.status === 'booked'
+                                        ? 'bg-paper text-open [--frame:var(--color-open)]'
+                                        : 'bg-paper [--frame:var(--color-line)]',
                                 ].join(' ')}
                             >
                                 {statusText[w.status] ?? w.status}

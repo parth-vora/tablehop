@@ -15,8 +15,8 @@ export default async function HostPage({ params }: { params: Promise<{ id: strin
 
     return (
         <div className="py-12 sm:py-16">
-            <p className="text-sm text-muted">Host stand</p>
-            <h1 className="mt-1 text-4xl font-semibold tracking-[-0.03em] sm:text-5xl">{restaurant.name}</h1>
+            <p className="font-pixel text-[9px] text-coin">HOST STAND · CONTROL ROOM</p>
+            <h1 className="mt-4 font-pixel text-2xl leading-[1.5] text-balance sm:text-3xl">{restaurant.name}</h1>
             <HostView restaurantId={id} />
         </div>
     );

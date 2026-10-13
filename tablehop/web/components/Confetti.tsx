@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 
-const colors = ['#000000', '#0d7a4a', '#ffffff', '#6b6b6b'];
+const colors = ['#ffcc4d', '#5ee07a', '#ff6a55', '#fff4dc'];
 
 export default function Confetti({ pieces = 36 }: { pieces?: number }) {
     const bits = useMemo(
@@ -11,12 +11,11 @@ export default function Confetti({ pieces = 36 }: { pieces?: number }) {
                 const angle = (i / pieces) * Math.PI * 2 + Math.random() * 0.4;
                 const dist = 90 + Math.random() * 140;
                 return {
-                    x: Math.cos(angle) * dist,
-                    y: Math.sin(angle) * dist - 60,
-                    r: Math.random() * 720 - 360,
+                    x: Math.round((Math.cos(angle) * dist) / 4) * 4,
+                    y: Math.round((Math.sin(angle) * dist - 60) / 4) * 4,
+                    r: Math.round(Math.random() * 4) * 90,
                     color: colors[i % colors.length],
-                    w: 6 + Math.random() * 6,
-                    round: i % 3 === 0,
+                    size: i % 3 === 0 ? 8 : 4,
                 };
             }),
         [pieces],
@@ -27,11 +26,10 @@ export default function Confetti({ pieces = 36 }: { pieces?: number }) {
             {bits.map((b, i) => (
                 <span
                     key={i}
-                    className="animate-confetti absolute block border border-ink/10"
+                    className="animate-confetti absolute block"
                     style={{
-                        width: b.w,
-                        height: b.round ? b.w : b.w * 0.45,
-                        borderRadius: b.round ? 999 : 1,
+                        width: b.size,
+                        height: b.size,
                         background: b.color,
                         ['--x' as string]: `${b.x}px`,
                         ['--y' as string]: `${b.y}px`,
