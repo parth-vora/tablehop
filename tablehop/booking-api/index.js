@@ -7,6 +7,7 @@ const app = express();
 app.use(express.json());
 
 app.use((req, res, next) => {
+    if (process.env.AUTH_MODE === 'iam') return next();
     if (!process.env.API_KEY || req.get('x-api-key') !== process.env.API_KEY) {
         return res.status(401).json({ error: 'Unauthorized' });
     }
