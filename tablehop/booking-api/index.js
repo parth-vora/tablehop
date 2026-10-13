@@ -21,6 +21,13 @@ async function allRestaurants() {
     return restaurantsRef.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 }
 
+function heldTables(waitlist, time, dinerId) {
+    const now = new Date().toISOString();
+    return waitlist
+        .filter(w => w.status === 'offered' && w.time === time && w.expiresAt > now && w.dinerId !== dinerId)
+        .map(w => w.tableId);
+}
+
 async function findBy(collection, field, value) {
     const docsRef = await store.collection(collection).where(field, '==', value).get();
     return docsRef.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -98,11 +105,14 @@ app.get('/restaurants/:id/availability', async (req, res) => {
         const guests = Number(req.query.guests || 2);
 
         const bookings = await findBooking('bookings', restaurant.id, date);
+        const waitlist = await findBooking('waitlist', restaurant.id, date);
 
         const slots = restaurant.timeSlots.map((time) => {
             const takenTables = bookings
                 .filter(b => b.time === time)
-                .map(b => b.tableId);
+                .map(b => b.tableId)
+                .concat(heldTables(waitlist, time));
+
 
             const freeTables = restaurant.tables.filter(
                 t => t.size >= guests && !takenTables.includes(t.id)
@@ -145,7 +155,11 @@ app.post('/bookings', async (req, res) => {
                 return { status: 200, body: already };
             }
 
+            const line = await tx.get(store.collection('waitlist').where('restaurantId', '==', restaurantId));
+            const held = heldTables(line.docs.map(doc => doc.data()).filter(w => w.date === date), time, dinerId);
+
             for (const table of options) {
+                if (held.includes(table.id)) continue;
                 const bookingId = bookingExists(restaurantId, table.id, date, time);
                 const bookingRef = store.collection('bookings').doc(bookingId);
 
