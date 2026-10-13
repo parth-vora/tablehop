@@ -29,8 +29,7 @@ export default function SignInForm({ restaurants, next, startAsHost }: { restaur
                             aria-selected={role === r}
                             onClick={() => setRole(r)}
                             className={['rounded-full py-2 transition-all', role === r ? 'bg-paper shadow-sm' : 'text-muted hover:text-ink'].join(' ')}
-                        >
-                            {r === 'diner' ? 'Diner' : 'Host'}
+                        >                            {r === 'diner' ? 'Diner' : 'Host'}
                         </button>
                     ))}
                 </div>
@@ -94,26 +93,6 @@ export default function SignInForm({ restaurants, next, startAsHost }: { restaur
                 <p className="mt-4 text-sm text-muted">New diner? Type any name. (The demo password is in the README.)</p>
             </form>
 
-            <section aria-labelledby="demo">
-                <h2 id="demo" className="border-b border-ink pb-3 text-sm font-medium">Demo accounts</h2>
-                <p className="mt-4 max-w-md text-[15px] text-muted">
-                </p>
-                <ul className="mt-4">
-                    
-                    {restaurants.slice(0, 1).map((r) => (
-                        <li key={r.id} className="border-b border-line">
-                            <button
-                                type="button"
-                                onClick={() => pick(() => { setRole('host'); setRestaurantId(r.id); })}
-                                className="group flex w-full items-baseline justify-between gap-4 py-3.5 text-left"
-                            >
-                                <span className="font-medium group-hover:underline group-hover:underline-offset-4">{r.name} host</span>
-                                <span className="text-sm text-muted">Runs the floor</span>
-                            </button>
-                        </li>
-                    ))}
-                </ul>
-            </section>
         </div>
     );
 }
