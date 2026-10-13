@@ -80,8 +80,6 @@ export default function SiteHeader() {
                     {user && (
                         <>
                             <span className="hidden items-center gap-2 text-muted sm:flex">
-                                <span className="font-pixel text-[9px] text-open">{user.role === 'host' ? 'HOST' : 'DINER'}</span>
-                                {user.role === 'host' ? user.restaurantName : user.name}
                             </span>
                             <form action={signOut}>
                                 <button

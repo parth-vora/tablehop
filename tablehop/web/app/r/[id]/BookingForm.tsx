@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUser } from '@/lib/use-user';
 import { formatTime } from '@/lib/user';
 import { sfx } from '@/lib/sfx';
@@ -14,19 +14,33 @@ type Result = { ok: boolean; text: string; at: number };
 const MIN_GUESTS = 1;
 const MAX_GUESTS = 6;
 
-export default function BookingForm({ restaurantId, restaurantName }: { restaurantId: string; restaurantName: string }) {
+export default function BookingForm({ restaurantId, restaurantName, presetTime, presetGuests }: {
+    restaurantId: string;
+    restaurantName: string;
+    presetTime?: string;
+    presetGuests?: number;
+}) {
     const user = useUser();
     const [date, setDate] = useState('2024-06-15');
-    const [guests, setGuests] = useState(2);
+    const [guests, setGuests] = useState(
+        presetGuests ? Math.min(MAX_GUESTS, Math.max(MIN_GUESTS, presetGuests)) : 2,
+    );
     const [slots, setSlots] = useState<Slot[]>([]);
     const [picked, setPicked] = useState<Slot | null>(null);
     const [saving, setSaving] = useState(false);
     const [result, setResult] = useState<Result | null>(null);
+    const preset = useRef(presetTime);
 
     async function loadSlots() {
         const res = await fetch(`/api/availability?restaurantId=${restaurantId}&date=${date}&guests=${guests}`);
         const data = await res.json();
         setSlots(data.slots ?? []);
+
+        if (preset.current) {
+            const match = (data.slots ?? []).find((s: Slot) => s.time === preset.current);
+            if (match) setPicked(match);
+            preset.current = undefined;
+        }
     }
 
     useEffect(() => {
@@ -192,10 +206,10 @@ export default function BookingForm({ restaurantId, restaurantName }: { restaura
                 )}
             </div>
 
-            {result?.ok && <Confetti key={result.at} pieces={28} />}
+            {result?.ok && <Confetti key={'confetti-' + result.at} pieces={28} />}
             {result && (
                 <div
-                    key={result.at}
+                    key={'msg-' + result.at}
                     role="status"
                     className={[
                         'px-frame animate-pop mt-6 px-4 py-3',

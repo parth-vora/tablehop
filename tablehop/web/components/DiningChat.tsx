@@ -60,7 +60,7 @@ function ToolStep({ part }: { part: ToolPart }) {
                     {open.slice(0, 6).map((s: { time: string }) => (
                         <Link
                             key={s.time}
-                            href={`/r/${o.restaurantId}`}
+                            href={`/r/${o.restaurantId}?time=${s.time}&guests=${o.guests}`}
                             onClick={() => sfx('select')}
                             className="px-frame bg-paper px-2 py-1 font-pixel text-[9px] [--frame:var(--color-line)] hover:[--frame:var(--color-open)]"
                         >
@@ -72,12 +72,33 @@ function ToolStep({ part }: { part: ToolPart }) {
             </div>
         );
     }
+
+    // top diners only
+    if (part.type === 'tool-bookTable') {
+        if (!done) return <Pending>Booking your table…</Pending>;
+        const b = part.output;
+        return b?.booked ? (
+            <div className="px-frame animate-pop bg-open p-3 text-void [--frame:var(--color-void)]">
+                <p className="font-pixel text-[10px]">Booked!</p>
+                <p className="mt-1.5">{b.name}, {formatTime(b.time)} for {b.guests}</p>
+                <Link href="/me" onClick={() => sfx('select')} className="mt-1 inline-block text-sm underline underline-offset-2">
+                    See my reservations
+                </Link>
+            </div>
+        ) : (
+            <p className="px-frame bg-wash p-3 text-sm text-alert [--frame:var(--color-alert)]">
+                Couldn’t book {b?.name} at {formatTime(b?.time ?? '')}: {b?.reason}
+            </p>
+        );
+    }
+
     return null;
 }
 
 export default function DiningChat() {
     const [open, setOpen] = useState(false);
     const [input, setInput] = useState('');
+    const [canBook, setCanBook] = useState(false);
     const { messages, sendMessage, status, stop, error } = useChat();
     const log = useRef<HTMLDivElement>(null);
     const busy = status === 'submitted' || status === 'streaming';
@@ -85,6 +106,11 @@ export default function DiningChat() {
     useEffect(() => {
         log.current?.scrollTo({ top: log.current.scrollHeight, behavior: 'smooth' });
     }, [messages, status]);
+
+    useEffect(() => {
+        if (!open) return;
+        fetch('/api/flags').then((r) => r.json()).then((f) => setCanBook(!!f.agentBooking)).catch(() => {});
+    }, [open]);
 
     function send(text: string) {
         if (!text.trim() || busy) return;
@@ -124,6 +150,11 @@ export default function DiningChat() {
                             <div>
                                 <h2 className="font-pixel text-[10px]">Where should I eat?</h2>
                                 <p className="mt-1 text-sm text-muted">Checks real open tables before it suggests anything</p>
+                                {canBook && (
+                                    <span className="px-frame animate-pop mt-2 inline-block bg-open px-2 py-1 font-pixel text-[8px] text-void [--frame:var(--color-void)]">
+                                        Top diner perk: I can book for you
+                                    </span>
+                                )}
                             </div>
                         </div>
                         <button
@@ -142,7 +173,9 @@ export default function DiningChat() {
                         {messages.length === 0 && (
                             <div className="animate-enter">
                                 <p className="px-frame bg-wash px-4 py-3 [--frame:var(--color-line)]">
-                                    Tell me the vibe, party size and time, and I’ll find somewhere with a table.
+                                    {canBook
+                                        ? 'Tell me the vibe, party size and time. I’ll find a table and book it for you.'
+                                        : 'Tell me the vibe, party size and time, and I’ll find somewhere with a table.'}
                                 </p>
                                 <div className="mt-4 flex flex-col items-start gap-3">
                                     {suggestions.map((s) => (

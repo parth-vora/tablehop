@@ -5,8 +5,12 @@ import DiningChat from '@/components/DiningChat';
 import PixelIcon, { Coins, Hearts } from '@/components/PixelIcon';
 import BookingForm from './BookingForm';
 
-export default async function RestaurantPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RestaurantPage({ params, searchParams }: {
+    params: Promise<{ id: string }>;
+    searchParams: Promise<{ time?: string; guests?: string }>;
+}) {
     const { id } = await params;
+    const { time, guests } = await searchParams;
     const { status, data: restaurant } = await bookingAPI(`/restaurants/${id}`);
 
     if (status === 404) notFound();
@@ -49,7 +53,12 @@ export default async function RestaurantPage({ params }: { params: Promise<{ id:
                     )}
                 </section>
 
-                <BookingForm restaurantId={id} restaurantName={restaurant.name} />
+                <BookingForm
+                    restaurantId={id}
+                    restaurantName={restaurant.name}
+                    presetTime={time}
+                    presetGuests={guests ? Number(guests) : undefined}
+                />
             </div>
 
             <DiningChat />
