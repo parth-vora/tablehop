@@ -1,6 +1,7 @@
 import express from 'express';
 import { Firestore } from '@google-cloud/firestore';
 import * as samples from './samples.js';
+import crypto from 'node:crypto';
 
 const store = new Firestore();
 const app = express();
@@ -15,6 +16,10 @@ app.use((req, res, next) => {
 });
 
 // helper functions
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+    return { salt, hash: crypto.scryptSync(password, salt, 64).toString('hex') };
+}
 
 async function allRestaurants() {
     const restaurantsRef = await store.collection('restaurants').get();
@@ -319,6 +324,49 @@ app.get('/restaurants/:id/day', async (req, res) => {
         const waitlist = (await findBooking('waitlist', restaurant.id, date))
             .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
         res.json({ restaurant, bookings, waitlist });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// accounts
+
+app.post('/users', async (req, res) => {
+    try {
+        const { name, password } = req.body;
+        if (!name?.trim() || !password || password.length < 8) {
+            return res.status(400).json({ error: 'Enter a name and a password of at least 8 characters.' });
+        }
+        const dinerId = getDiner(name);
+        const ref = store.collection('users').doc(dinerId);
+
+        const created = await store.runTransaction(async (tx) => {
+            if ((await tx.get(ref)).exists) return false;
+            tx.set(ref, { name: name.trim(), dinerId, ...hashPassword(password), createdAt: new Date().toISOString() });
+            return true;
+        });
+        if (!created) return res.status(409).json({ error: 'That name already has an account. Try signing in.' });
+
+        res.status(201).json({ name: name.trim(), dinerId });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/users/login', async (req, res) => {
+    try {
+        const { name, password } = req.body;
+        if (!name?.trim()) return res.status(400).json({ error: 'Enter your name.' });
+
+        const doc = await store.collection('users').doc(getDiner(name)).get();
+        if (!doc.exists) return res.status(404).json({ error: 'No account with that name.' });
+
+        const user = doc.data();
+        const { hash } = hashPassword(String(password ?? ''), user.salt);
+        if (!crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(user.hash, 'hex'))) {
+            return res.status(401).json({ error: 'Wrong password.' });
+        }
+        res.json({ name: user.name, dinerId: user.dinerId });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

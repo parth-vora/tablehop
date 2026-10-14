@@ -2,33 +2,17 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { USER_COOKIE, type User } from '@/lib/user';
+import { USER_COOKIE, dinerId, type User } from '@/lib/user';
 import { bookingAPI } from '@/lib/booking-api';
 
-
-const PASSWORD = process.env.DEMO_PASSWORD ?? 'password';
+// shared password for the demo accounts (in the README). real accounts use their own
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'password';
+// the only names that can sign in without an account, and that nobody can sign up as
+const DEMO_DINERS = ['maya-chen', 'jordan-blake', 'priya-raman', 'jane-smith', 'sam-rivera'];
 
 export type SignInState = { error?: string } | null;
 
-export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
-    const role = formData.get('role') === 'host' ? 'host' : 'diner';
-    const name = String(formData.get('name') ?? '').trim();
-    const restaurantId = String(formData.get('restaurantId') ?? '');
-    const next = String(formData.get('next') ?? '');
-
-    if (role === 'diner' && !name) return { error: 'Enter your name.' };
-    if (role === 'host' && !restaurantId) return { error: 'Choose your restaurant.' };
-    if (formData.get('password') !== PASSWORD) return { error: 'Wrong password. Check the README for the demo password.' };
-
-    const user: User = { name, role };
-    if (role === 'host') {
-        const { status, data } = await bookingAPI(`/restaurants/${restaurantId}`);
-        if (status !== 200) return { error: 'That restaurant doesn’t exist.' };
-        user.name = data.name;
-        user.restaurantId = restaurantId;
-        user.restaurantName = data.name;
-    }
-
+async function startSession(user: User) {
     const store = await cookies();
     store.set(USER_COOKIE, JSON.stringify(user), {
         path: '/',
@@ -37,8 +21,65 @@ export async function signIn(_prev: SignInState, formData: FormData): Promise<Si
         httpOnly: true,
         maxAge: 60 * 60 * 24 * 7,
     });
-    if (role === 'diner' && next.startsWith('/') && !next.startsWith('//')) redirect(next);
-    redirect(role === 'host' ? `/host/${restaurantId}` : '/me');
+}
+
+function safeNext(next: string) {
+    return next.startsWith('/') && !next.startsWith('//') ? next : '';
+}
+
+export async function signIn(_prev: SignInState, formData: FormData): Promise<SignInState> {
+    const role = formData.get('role') === 'host' ? 'host' : 'diner';
+    const name = String(formData.get('name') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+    const restaurantId = String(formData.get('restaurantId') ?? '');
+    const next = safeNext(String(formData.get('next') ?? ''));
+
+    // hosts: demo password for now (host accounts come later)
+    if (role === 'host') {
+        if (!restaurantId) return { error: 'Choose your restaurant.' };
+        if (password !== DEMO_PASSWORD) return { error: 'Wrong password. Hosts use the demo password in the README.' };
+        const { status, data } = await bookingAPI(`/restaurants/${restaurantId}`);
+        if (status !== 200) return { error: 'That restaurant doesn’t exist.' };
+        await startSession({ name: data.name, role, restaurantId, restaurantName: data.name });
+        redirect(`/host/${restaurantId}`);
+    }
+
+    if (!name) return { error: 'Enter your name.' };
+
+    // real account? check its password on GCP
+    const { status, data } = await bookingAPI('/users/login', 'POST', { name, password });
+    if (status === 401) return { error: 'Wrong password.' };
+
+    if (status === 404) {
+        // no account: only the built-in demo diners get in, and only with the demo password
+        if (!DEMO_DINERS.includes(dinerId(name))) {
+            return { error: 'No account with that name. Tap “Create an account” to sign up.' };
+        }
+        if (password !== DEMO_PASSWORD) {
+            return { error: 'Wrong password. Demo accounts use the password in the README.' };
+        }
+    } else if (status !== 200) {
+        return { error: 'Couldn’t sign you in. Try again.' };
+    }
+
+    await startSession({ name: status === 200 ? data.name : name, role: 'diner' });
+    redirect(next || '/me');
+}
+
+export async function signUp(_prev: SignInState, formData: FormData): Promise<SignInState> {
+    const name = String(formData.get('name') ?? '').trim();
+    const password = String(formData.get('password') ?? '');
+    const next = safeNext(String(formData.get('next') ?? ''));
+
+    if (!name) return { error: 'Enter your name.' };
+    if (DEMO_DINERS.includes(dinerId(name))) return { error: 'That’s a demo account. Sign in with the demo password instead.' };
+    if (password.length < 8) return { error: 'Use a password with at least 8 characters.' };
+
+    const { status, data } = await bookingAPI('/users', 'POST', { name, password });
+    if (status !== 201) return { error: data.error ?? 'Couldn’t create your account. Try again.' };
+
+    await startSession({ name: data.name, role: 'diner' });
+    redirect(next || '/me');
 }
 
 export async function signOut() {
