@@ -27,3 +27,13 @@ Vercel:
 Google Cloud
 - Firestore: Database for guest info, reservations, and restaurants. 
 - Cloud Run: The booking api is hosted here. 
+
+DEMO STEPS:
+
+Sign in as (username is name, password is password): 
+
+Maya Chen, Diner, First on the 8:00 pm waitlist at The Fancy Fork
+Jordan Blake,	Diner, Second on that waitlist
+Jane Smith,	Diner, 	Holds the 8:00 pm booking. Cancel it and Maya gets offered the table
+Sam Rivera,	Diner, (top diner)	The chat assistant books tables for you directly
+The Fancy Fork,	Host, Live floor plan and waitlist
