@@ -40,6 +40,7 @@ export default function BookingForm({ restaurantId, restaurantName, presetTime, 
             const match = (data.slots ?? []).find((s: Slot) => s.time === preset.current);
             if (match) setPicked(match);
             preset.current = undefined;
+            window.history.replaceState(null, '', window.location.pathname);
         }
     }
 
@@ -149,7 +150,6 @@ export default function BookingForm({ restaurantId, restaurantName, presetTime, 
                     return (
                         <button
                             key={`${date}-${guests}-${s.time}`}
-                            style={{ animationDelay: `${i * 30}ms` }}
                             onClick={() => {
                                 sfx('select');
                                 setPicked(s);
