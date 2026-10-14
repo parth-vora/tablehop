@@ -353,6 +353,74 @@ app.post('/users', async (req, res) => {
     }
 });
 
+
+app.post('/restaurants', async (req, res) => {
+    try {
+        const { name, neighborhood, cuisine, priceRange, description, password } = req.body;
+        const counts = req.body.tables ?? {};
+        if (!name?.trim() || !neighborhood?.trim() || !cuisine?.trim()) {
+            return res.status(400).json({ error: 'Enter the restaurant name, neighborhood and cuisine.' });
+        }
+        if (!password || password.length < 8) {
+            return res.status(400).json({ error: 'Use a password with at least 8 characters.' });
+        }
+
+        const tables = [];
+        for (const [key, size] of [['two', 2], ['four', 4], ['six', 6]]) {
+            const n = Math.min(20, Math.max(0, Number(counts[key] ?? 0)));
+            for (let i = 0; i < n; i++) tables.push({ id: `table${tables.length + 1}`, size });
+        }
+        if (tables.length === 0) return res.status(400).json({ error: 'Add at least one table.' });
+
+        const ref = store.collection('restaurants').doc(); // auto id
+        const restaurant = {
+            id: ref.id,
+            name: name.trim(),
+            neighborhood: neighborhood.trim(),
+            cuisine: cuisine.trim(),
+            priceRange: ['$', '$$', '$$$', '$$$$'].includes(priceRange) ? priceRange : '$$',
+            rating: 0,
+            categories: [],
+            description: String(description ?? '').trim(),
+            tables,
+            timeSlots: samples.timeSlots,
+            custom: true,
+            createdAt: new Date().toISOString(),
+        };
+
+        const batch = store.batch();
+        batch.set(ref, restaurant);
+        batch.set(store.collection('users').doc(`host-${ref.id}`), {
+            role: 'host', restaurantId: ref.id, name: restaurant.name, ...hashPassword(password),
+            createdAt: new Date().toISOString(),
+        });
+        await batch.commit();
+
+        res.status(201).json(restaurant);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+app.post('/hosts/login', async (req, res) => {
+    try {
+        const { restaurantId, password } = req.body;
+        if (!restaurantId) return res.status(400).json({ error: 'Choose your restaurant.' });
+
+        const doc = await store.collection('users').doc(`host-${restaurantId}`).get();
+        if (!doc.exists) return res.status(404).json({ error: 'This restaurant has no host account.' });
+
+        const host = doc.data();
+        const { hash } = hashPassword(String(password ?? ''), host.salt);
+        if (!crypto.timingSafeEqual(Buffer.from(hash, 'hex'), Buffer.from(host.hash, 'hex'))) {
+            return res.status(401).json({ error: 'Wrong password.' });
+        }
+        res.json({ restaurantId, name: host.name });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 app.post('/users/login', async (req, res) => {
     try {
         const { name, password } = req.body;
@@ -375,9 +443,11 @@ app.post('/users/login', async (req, res) => {
 // demo reset
 app.post('/reset', async (req, res) => {
     try {
-        for (const name of ['restaurants', 'bookings', 'waitlist']) {
+                for (const name of ['bookings', 'waitlist']) {
             await clear(name);
         }
+        const existing = await store.collection('restaurants').get();
+        await Promise.all(existing.docs.filter(doc => !doc.data().custom).map(doc => doc.ref.delete()));
 
         for (const r of samples.restaurants) {
             await store.collection('restaurants').doc(r.id).set({ ...r, timeSlots: samples.timeSlots });
